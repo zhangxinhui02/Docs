@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: docs
+  name: docs
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: docs
+  template:
+    metadata:
+      labels:
+        app: docs
+    spec:
+      containers:
+        - image: reg.mikumikumi.xyz/cluster/docs:latest
+          imagePullPolicy: Always
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /
+              port: 80
+              scheme: HTTP
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          name: nginx
+          ports:
+            - containerPort: 80
+              name: web
+              protocol: TCP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: docs
+  name: docs
+  namespace: default
+spec:
+  ports:
+    - name: web
+      port: 80
+      protocol: TCP
+      targetPort: 80
+  selector:
+    app: docs
+  type: ClusterIP
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  labels:
+    app: docs
+  name: docs
+  namespace: default
+spec:
+  rules:
+    - host: docs.mikumikumi.xyz
+      http:
+        paths:
+          - backend:
+              service:
+                name: docs
+                port:
+                  number: 80
+            path: /
+            pathType: Prefix

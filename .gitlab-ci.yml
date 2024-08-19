@@ -1,0 +1,37 @@
+stages:
+- build
+- deploy
+
+pre-process-job:
+  stage: build
+  image: python:slim
+  script:
+    - python3 pre-process.py
+  cache:
+    key: sidebar
+    policy: push
+    paths:
+      - Docs/
+
+build-image-job:
+  stage: build
+  needs:
+    - pre-process-job
+  image: reg.mikumikumi.xyz/base/kaniko-builder:latest
+  script:
+    - build
+  cache:
+    key: sidebar
+    policy: pull
+    paths:
+      - Docs/
+
+deploy-job:
+  stage: deploy
+  image: reg.mikumikumi.xyz/base/kubectl:latest
+  script:
+    - IMAGE_SRC=reg.mikumikumi.xyz/cluster/docs:latest
+    - IMAGE_DST=reg.mikumikumi.xyz/cluster/docs:${CI_COMMIT_SHORT_SHA}
+    - sed -i "s|${IMAGE_SRC}|${IMAGE_DST}|g" deployment.yaml
+    - echo "${KUBECONFIG}" > ~/.kube/config
+    - kubectl apply -f deployment.yaml --kubeconfig ~/.kube/config
